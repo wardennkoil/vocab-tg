@@ -1,0 +1,12 @@
+{
+  "deny": [
+    "Read(api/.env)",
+    "Read(bot/.env)",
+    "Read(.env)",
+    "Edit(api/.env)",
+    "Edit(bot/.env)",
+    "Edit(.env)",
+    "Bash(cat */.env)",
+    "Bash(cat .env)"
+  ]
+}

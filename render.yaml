@@ -1,0 +1,47 @@
+services:
+  # FastAPI API + Telegram webhook + notification trigger
+  - type: web
+    name: vocab-tg-api
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: MINI_APP_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: DEEPL_API_KEY
+        sync: false
+      - key: DEEPL_FREE_API
+        value: "True"
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+
+  # Vue 3 frontend (Telegram Mini App)
+  - type: web
+    name: vocab-tg-app
+    runtime: static
+    rootDir: app
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false

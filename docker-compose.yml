@@ -1,0 +1,66 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: vocab-tg-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://vocab:vocab_password@postgres:5432/vocab_tg
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: vocab-tg-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - API_BASE_URL=http://api:8000
+      - MINI_APP_URL=${MINI_APP_URL}
+    depends_on:
+      - api
+    volumes:
+      - ./bot:/app
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: vocab-tg-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: vocab-tg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vocab_tg
+      POSTGRES_USER: vocab
+      POSTGRES_PASSWORD: vocab_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocab -d vocab_tg"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
