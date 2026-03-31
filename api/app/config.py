@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
@@ -22,13 +24,26 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
+    DB_USE_SSL: bool = False
+
     @model_validator(mode="after")
     def normalize_database_url(self) -> "Settings":
         url = self.DATABASE_URL
         if url.startswith("postgres://"):
-            self.DATABASE_URL = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://") and "+asyncpg" not in url:
-            self.DATABASE_URL = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+        if "sslmode" in params:
+            self.DB_USE_SSL = True
+            del params["sslmode"]
+            cleaned_query = urlencode(params, doseq=True)
+            parsed = parsed._replace(query=cleaned_query)
+            url = urlunparse(parsed)
+
+        self.DATABASE_URL = url
         return self
 
     @property
