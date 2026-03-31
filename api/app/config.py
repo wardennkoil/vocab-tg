@@ -39,9 +39,11 @@ class Settings(BaseSettings):
         if "sslmode" in params:
             self.DB_USE_SSL = True
             del params["sslmode"]
-            cleaned_query = urlencode(params, doseq=True)
-            parsed = parsed._replace(query=cleaned_query)
-            url = urlunparse(parsed)
+        if "channel_binding" in params:
+            del params["channel_binding"]
+        cleaned_query = urlencode(params, doseq=True)
+        parsed = parsed._replace(query=cleaned_query)
+        url = urlunparse(parsed)
 
         self.DATABASE_URL = url
         return self
