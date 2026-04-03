@@ -2,6 +2,7 @@ import logging
 
 import httpx
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from app.config import settings
@@ -57,16 +58,15 @@ async def mark_sent(
 
 @router.post(
     "/trigger",
-    response_model=TriggerResponse,
     dependencies=[Depends(verify_cron_secret)],
 )
 async def trigger_notifications(
     service: NotificationService = Depends(get_notification_service),
     http_client: httpx.AsyncClient = Depends(get_http_client),
-):
+) -> PlainTextResponse:
     pending = await service.get_pending_notifications()
     if not pending:
-        return TriggerResponse(notified_count=0, errors=0)
+        return PlainTextResponse("OK")
 
     tg = TelegramBotService(http_client)
     sent_user_ids = []
@@ -99,7 +99,10 @@ async def trigger_notifications(
     if sent_user_ids:
         await service.mark_sent(sent_user_ids)
 
-    return TriggerResponse(notified_count=len(sent_user_ids), errors=error_count)
+    if error_count > 0:
+        return PlainTextResponse("ERROR", status_code=207)
+
+    return PlainTextResponse("OK")
 
 
 def _build_notification_text(
